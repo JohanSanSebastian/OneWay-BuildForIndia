@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     ses_smtp_port: int = 587
     ses_smtp_username: Optional[str] = None
     ses_smtp_password: Optional[str] = None
+
+    # Twilio WhatsApp Integration
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_whatsapp_from: Optional[str] = None
     
     class Config:
         env_file = str(ENV_FILE)

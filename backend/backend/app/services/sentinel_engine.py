@@ -7,6 +7,7 @@ Provides:
 - EXIF metadata extraction for GPS and timestamps
 - Automated MVD email generation
 """
+
 import base64
 import json
 import logging
@@ -23,6 +24,12 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 
 from app.config import settings
+
+# Twilio WhatsApp
+try:
+    from twilio.rest import Client as TwilioClient
+except ImportError:
+    TwilioClient = None
 
 logger = logging.getLogger(__name__)
 
@@ -439,19 +446,50 @@ OneWay Citizen Reporter
     
     async def trigger_parking_call(self, plate_number: str, owner_phone: str) -> dict:
         """
-        Trigger automated voice call for parking obstruction.
-        Currently logs the event; voice integration pending.
+        Always send WhatsApp to 8943377737 for parking assist, regardless of input.
         """
-        logger.info(f"Call triggered for plate {plate_number} to {owner_phone}")
-        
-        # In production, this would trigger a voice service webhook
-        return {
-            "status": "Pending Voice Integration",
-            "plate": plate_number,
-            "phone": owner_phone,
-            "timestamp": datetime.now().isoformat(),
-            "message": "Call event logged. Voice integration pending."
-        }
+        logger.info(f"Parking assist: WhatsApp message for plate {plate_number} to hardcoded 8943377737")
+
+        sid = settings.twilio_account_sid
+        token = settings.twilio_auth_token
+        from_whatsapp = settings.twilio_whatsapp_from
+        to_whatsapp = "whatsapp:+918943377737"
+        msg_body = f"Your Vehicle ({plate_number}) was found obstructing a fellow driver. Please move the car immediately."
+
+        if TwilioClient and sid and token and from_whatsapp:
+            try:
+                client = TwilioClient(sid, token)
+                message = client.messages.create(
+                    from_=from_whatsapp,
+                    body=msg_body,
+                    to=to_whatsapp
+                )
+                logger.info(f"Twilio WhatsApp sent: SID {message.sid}")
+                return {
+                    "status": "WhatsApp Sent",
+                    "plate": plate_number,
+                    "phone": "8943377737",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": f"WhatsApp message sent. SID: {message.sid}"
+                }
+            except Exception as e:
+                logger.error(f"Twilio WhatsApp error: {e}")
+                return {
+                    "status": "WhatsApp Error",
+                    "plate": plate_number,
+                    "phone": "8943377737",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": f"Failed to send WhatsApp: {e}"
+                }
+        else:
+            logger.warning("Twilio not configured or unavailable. Skipping WhatsApp send.")
+            return {
+                "status": "WhatsApp Not Configured",
+                "plate": plate_number,
+                "phone": "8943377737",
+                "timestamp": datetime.now().isoformat(),
+                "message": "Twilio not configured or unavailable."
+            }
 
 
 # Singleton instance
